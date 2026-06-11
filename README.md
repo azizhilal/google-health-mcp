@@ -47,24 +47,54 @@ You can't skip this — Google requires an OAuth client. But for personal use
      and add it, then redeploy is not needed — just save in Google).
    - Copy the **Client ID** and **Client Secret**.
 
-## Deploy to Cloudflare
+## Deploy
+
+Two options. **CI deploy** (recommended) needs no local tooling at all.
+
+### Option A — GitHub Actions (no local wrangler)
+
+The workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+deploys on every push to `master` (and on demand via "Run workflow"). Like the
+replite setup, the **app secrets live in Cloudflare**, not GitHub — GitHub only
+holds the Cloudflare API token + account id.
+
+**One-time setup:**
+
+1. **Create the KV namespace** in the Cloudflare dashboard: *Storage & Databases
+   → KV → Create namespace* named `OAUTH_KV`. Copy its **ID** into
+   `wrangler.jsonc` (replace `REPLACE_WITH_KV_NAMESPACE_ID`) and commit.
+2. **Create a Cloudflare API token**: dashboard → *My Profile → API Tokens →
+   Create Token → "Edit Cloudflare Workers" template*. Also note your
+   **Account ID** (Workers & Pages → right sidebar).
+3. **Add GitHub repo secrets** (*Settings → Secrets and variables → Actions →
+   New repository secret*): just `CLOUDFLARE_API_TOKEN` and
+   `CLOUDFLARE_ACCOUNT_ID`.
+4. **Push to `master`.** This creates the Worker. The Actions log prints its URL
+   (`https://google-health-mcp.<subdomain>.workers.dev`).
+5. **Set the app secrets in Cloudflare** (after the Worker exists): *Workers &
+   Pages → google-health-mcp → Settings → Variables and Secrets → Add*, type
+   **Secret** (encrypted), for each of:
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   - `COOKIE_ENCRYPTION_KEY` (any long random string)
+
+   These persist across deploys, so you set them once. (Or use
+   `wrangler secret put <NAME>` locally if you prefer the CLI.)
+
+### Option B — local wrangler
 
 ```sh
 npm install
-
-# Create the KV namespace and paste the printed id into wrangler.jsonc
-npx wrangler kv namespace create OAUTH_KV
-
-# Secrets
+npx wrangler kv namespace create OAUTH_KV   # paste the printed id into wrangler.jsonc
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put COOKIE_ENCRYPTION_KEY   # any long random string
-
 npx wrangler deploy
 ```
 
-After the first deploy you'll get `https://google-health-mcp.<subdomain>.workers.dev`.
-Go back to the Google OAuth client and set the redirect URI to
+### After the first deploy (either option)
+
+You'll have `https://google-health-mcp.<subdomain>.workers.dev`. Go back to the
+Google OAuth client and set the redirect URI to
 `https://google-health-mcp.<subdomain>.workers.dev/callback`.
 
 ## Connect in Claude
