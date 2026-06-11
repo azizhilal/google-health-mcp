@@ -20,6 +20,14 @@ const DATA_TYPE = {
   sleep: "sleep",
   heartRate: "heart-rate",
   activeZoneMinutes: "active-zone-minutes",
+  steps: "steps",
+  distance: "distance",
+  totalCalories: "total-calories",
+  weight: "weight",
+  bodyFat: "body-fat",
+  oxygenSaturation: "daily-oxygen-saturation",
+  respiratoryRate: "daily-respiratory-rate",
+  vo2Max: "daily-vo2-max",
   nutrition: "nutrition-log",
   hydration: "hydration-log",
 } as const;
@@ -164,7 +172,7 @@ export function registerTools(
     "get_daily_summary",
     {
       title: "Daily Activity Summary",
-      description: "Get an activity/load summary for a date range: active-zone-minutes and resting heart rate. Complements Strava workout data with all-day load.",
+      description: "Get an all-day activity/load summary over a date range: active-zone-minutes, steps, distance, total calories burned, and resting heart rate. Complements Strava workout data with all-day load.",
       inputSchema: {
         start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive start, YYYY-MM-DD."),
         end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive end, YYYY-MM-DD."),
@@ -174,11 +182,14 @@ export function registerTools(
     async ({ start_date, end_date }) => {
       try {
         const client = getClient();
-        const [azm, restingHr] = await Promise.all([
+        const [azm, steps, distance, totalCalories, restingHr] = await Promise.all([
           client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start_date, end_date),
+          client.dailyRollUp(DATA_TYPE.steps, start_date, end_date),
+          client.dailyRollUp(DATA_TYPE.distance, start_date, end_date),
+          client.dailyRollUp(DATA_TYPE.totalCalories, start_date, end_date),
           client.reconcile(DATA_TYPE.restingHeartRate, start_date, end_date, BY_DATE),
         ]);
-        return jsonResult({ activeZoneMinutes: azm, restingHeartRate: restingHr });
+        return jsonResult({ activeZoneMinutes: azm, steps, distance, totalCalories, restingHeartRate: restingHr });
       } catch (err) {
         return errorResult(err);
       }
@@ -210,6 +221,57 @@ export function registerTools(
     },
   );
 
+  server.registerTool(
+    "get_body_composition",
+    {
+      title: "Body Composition",
+      description: "Get body weight and body-fat percentage over a date range. Use for body-composition trends across a training block.",
+      inputSchema: {
+        start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive start, YYYY-MM-DD."),
+        end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive end, YYYY-MM-DD."),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ start_date, end_date }) => {
+      try {
+        const client = getClient();
+        const [weight, bodyFat] = await Promise.all([
+          client.dailyRollUp(DATA_TYPE.weight, start_date, end_date),
+          client.dailyRollUp(DATA_TYPE.bodyFat, start_date, end_date),
+        ]);
+        return jsonResult({ weight, bodyFat });
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_vitals_trend",
+    {
+      title: "Vitals & Fitness Trend",
+      description: "Get daily overnight vitals and fitness markers over a date range: respiratory rate, blood-oxygen saturation (SpO2), and estimated VO2 max. Rising respiratory rate or falling SpO2 can flag illness or under-recovery; VO2 max tracks aerobic fitness.",
+      inputSchema: {
+        start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive start, YYYY-MM-DD."),
+        end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Inclusive end, YYYY-MM-DD."),
+      },
+      annotations: READ_ONLY,
+    },
+    async ({ start_date, end_date }) => {
+      try {
+        const client = getClient();
+        const [respiratoryRate, oxygenSaturation, vo2Max] = await Promise.all([
+          client.reconcile(DATA_TYPE.respiratoryRate, start_date, end_date, BY_DATE),
+          client.reconcile(DATA_TYPE.oxygenSaturation, start_date, end_date, BY_DATE),
+          client.reconcile(DATA_TYPE.vo2Max, start_date, end_date, BY_DATE),
+        ]);
+        return jsonResult({ respiratoryRate, oxygenSaturation, vo2Max });
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
   // Self-check: probe every metric over the last few days and report, per
   // metric, whether it returned data / was empty / errored (with the API's
   // error). Turns "the connector is broken" into a precise map of which
@@ -233,6 +295,14 @@ export function registerTools(
         { metric: "hrv", run: () => client.reconcile(DATA_TYPE.heartRateVariability, start, end, BY_DATE) },
         { metric: "active_zone_minutes", run: () => client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start, end) },
         { metric: "heart_rate", run: () => client.dailyRollUp(DATA_TYPE.heartRate, start, end) },
+        { metric: "steps", run: () => client.dailyRollUp(DATA_TYPE.steps, start, end) },
+        { metric: "distance", run: () => client.dailyRollUp(DATA_TYPE.distance, start, end) },
+        { metric: "total_calories", run: () => client.dailyRollUp(DATA_TYPE.totalCalories, start, end) },
+        { metric: "weight", run: () => client.dailyRollUp(DATA_TYPE.weight, start, end) },
+        { metric: "body_fat", run: () => client.dailyRollUp(DATA_TYPE.bodyFat, start, end) },
+        { metric: "respiratory_rate", run: () => client.reconcile(DATA_TYPE.respiratoryRate, start, end, BY_DATE) },
+        { metric: "oxygen_saturation", run: () => client.reconcile(DATA_TYPE.oxygenSaturation, start, end, BY_DATE) },
+        { metric: "vo2_max", run: () => client.reconcile(DATA_TYPE.vo2Max, start, end, BY_DATE) },
         { metric: "nutrition", run: () => client.dailyRollUp(DATA_TYPE.nutrition, start, end) },
         { metric: "hydration", run: () => client.dailyRollUp(DATA_TYPE.hydration, start, end) },
       ];

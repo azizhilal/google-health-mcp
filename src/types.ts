@@ -14,6 +14,8 @@ export type Props = {
 /** Worker bindings. Mirrors wrangler.jsonc; `wrangler types` regenerates this. */
 export interface Env {
   OAUTH_KV: KVNamespace;
+  /** Cache for immutable past-day API responses. */
+  HEALTH_CACHE: KVNamespace;
   OAUTH_PROVIDER: OAuthHelpers;
   MCP_OBJECT: DurableObjectNamespace;
   GOOGLE_CLIENT_ID: string;

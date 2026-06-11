@@ -39,6 +39,9 @@ export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props>
           refreshToken: this.props.refreshToken,
           clientId: this.env.GOOGLE_CLIENT_ID,
           clientSecret: this.env.GOOGLE_CLIENT_SECRET,
+          cache: this.env.HEALTH_CACHE,
+          userId: this.props.email,
+          timeZone: this.env.TIME_ZONE || "Europe/London",
         }),
       this.env.TIME_ZONE || "Europe/London",
     );

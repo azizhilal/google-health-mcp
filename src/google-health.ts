@@ -9,10 +9,13 @@
  * dailyRollUp request bodies and (2) transparently refreshing the access token.
  */
 
-import { toCivilDate, nextDayIso, buildTimeFilter } from "./dates";
+import { toCivilDate, nextDayIso, buildTimeFilter, todayIso } from "./dates";
 
 const HEALTH_BASE = "https://health.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+/** Past days never change, so cache them for a long time (30 days). */
+const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 /** Transient (retryable) HTTP statuses and how many times we'll back off. */
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -27,6 +30,12 @@ export interface GoogleHealthClientOptions {
   refreshToken?: string;
   clientId: string;
   clientSecret: string;
+  /** Optional KV cache for immutable past-day responses. */
+  cache?: KVNamespace;
+  /** Identifies the user, so cache keys never leak across accounts. */
+  userId?: string;
+  /** IANA timezone used to decide whether a range is wholly in the past. */
+  timeZone?: string;
 }
 
 export class GoogleHealthClient {
@@ -34,12 +43,49 @@ export class GoogleHealthClient {
   private readonly refreshToken?: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
+  private readonly cache?: KVNamespace;
+  private readonly userId: string;
+  private readonly timeZone: string;
 
   constructor(opts: GoogleHealthClientOptions) {
     this.accessToken = opts.accessToken;
     this.refreshToken = opts.refreshToken;
     this.clientId = opts.clientId;
     this.clientSecret = opts.clientSecret;
+    this.cache = opts.cache;
+    this.userId = opts.userId ?? "anon";
+    this.timeZone = opts.timeZone ?? "UTC";
+  }
+
+  /**
+   * Wrap a date-range fetch with KV caching. Only ranges that end strictly
+   * before today (in the user's timezone) are cached — those days are final
+   * and immutable. Any range touching today is always fetched live. Cache
+   * failures (read or write) never break the request.
+   */
+  private async withCache(
+    keyParts: unknown[],
+    endDate: string,
+    fetcher: () => Promise<unknown>,
+  ): Promise<unknown> {
+    const cacheable = this.cache && endDate < todayIso(this.timeZone);
+    if (!cacheable) return fetcher();
+
+    const key = `v1:${this.userId}:${JSON.stringify(keyParts)}`;
+    try {
+      const hit = await this.cache!.get(key, "json");
+      if (hit !== null) return hit;
+    } catch {
+      // Treat a cache read error as a miss.
+    }
+
+    const result = await fetcher();
+    try {
+      await this.cache!.put(key, JSON.stringify(result), { expirationTtl: CACHE_TTL_SECONDS });
+    } catch {
+      // A failed write just means no caching this time.
+    }
+    return result;
   }
 
   /**
@@ -65,11 +111,13 @@ export class GoogleHealthClient {
       end: { date: toCivilDate(nextDayIso(endDate)) },
     };
     // pageToken (when present) goes in the POST body for this method.
-    return this.paginate("rollupDataPoints", (pageToken) =>
-      this.request(url, {
-        method: "POST",
-        body: JSON.stringify(pageToken ? { range, pageToken } : { range }),
-      }),
+    return this.withCache(["dailyRollUp", dataType, startDate, endDate], endDate, () =>
+      this.paginate("rollupDataPoints", (pageToken) =>
+        this.request(url, {
+          method: "POST",
+          body: JSON.stringify(pageToken ? { range, pageToken } : { range }),
+        }),
+      ),
     );
   }
 
@@ -128,13 +176,16 @@ export class GoogleHealthClient {
       timeMember: opts.timeMember,
       physical: opts.physical,
     });
-    return this.paginate("dataPoints", (pageToken) => {
-      const params = new URLSearchParams({ filter });
-      if (opts.dataSourceFamily) params.set("dataSourceFamily", opts.dataSourceFamily);
-      if (pageToken) params.set("pageToken", pageToken);
-      const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints:reconcile?${params}`;
-      return this.request(url, { method: "GET" });
-    });
+    const cacheKey = ["reconcile", dataType, startDate, endDate, opts.timeMember, opts.physical, opts.dataSourceFamily];
+    return this.withCache(cacheKey, endDate, () =>
+      this.paginate("dataPoints", (pageToken) => {
+        const params = new URLSearchParams({ filter });
+        if (opts.dataSourceFamily) params.set("dataSourceFamily", opts.dataSourceFamily);
+        if (pageToken) params.set("pageToken", pageToken);
+        const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints:reconcile?${params}`;
+        return this.request(url, { method: "GET" });
+      }),
+    );
   }
 
   /**

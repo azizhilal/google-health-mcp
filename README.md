@@ -19,7 +19,9 @@ and recovery.
 | `get_hrv_trend` | HRV over the last N days (autonomic recovery trend) |
 | `get_resting_hr_trend` | Resting HR over N days (rising = fatigue/illness) |
 | `get_sleep` | Nightly sleep duration + stages over a range |
-| `get_daily_summary` | Active-zone-minutes + resting HR over a range |
+| `get_daily_summary` | Active-zone-minutes, steps, distance, calories + resting HR over a range |
+| `get_body_composition` | Weight + body-fat % over a range |
+| `get_vitals_trend` | Respiratory rate, SpO2, and VO2 max over a range |
 | `get_nutrition` | Calories, macros, and hydration over a range (needs the nutrition scope) |
 | `run_diagnostics` | Probes every metric and reports per-metric `ok` / `empty` / `error` |
 
@@ -44,6 +46,14 @@ member differs by type. The mapping below is what this server uses (see
 | HRV | `daily-heart-rate-variability` | `reconcile` | `daily_heart_rate_variability.date` (civil date) |
 | Active-zone-min | `active-zone-minutes` | `dailyRollUp` | — (civil `range` in body) |
 | Heart rate | `heart-rate` | `dailyRollUp` | — (civil `range` in body) |
+| Steps | `steps` | `dailyRollUp` | — (civil `range` in body) |
+| Distance | `distance` | `dailyRollUp` | — (civil `range` in body) |
+| Total calories | `total-calories` | `dailyRollUp` | — (civil `range` in body) |
+| Weight | `weight` | `dailyRollUp` | — (civil `range` in body) |
+| Body fat | `body-fat` | `dailyRollUp` | — (civil `range` in body) |
+| Respiratory rate | `daily-respiratory-rate` | `reconcile` | `daily_respiratory_rate.date` (civil date) |
+| Oxygen saturation | `daily-oxygen-saturation` | `reconcile` | `daily_oxygen_saturation.date` (civil date) |
+| VO2 max | `daily-vo2-max` | `reconcile` | `daily_vo2_max.date` (civil date) |
 | Nutrition | `nutrition-log` | `dailyRollUp` | — (civil `range` in body) |
 | Hydration | `hydration-log` | `dailyRollUp` | — (civil `range` in body) |
 
@@ -61,6 +71,15 @@ Rules of thumb:
   data type ID in the URL path is **kebab-case** (`daily-resting-heart-rate`).
 - Ranges/filters are **closed-open** (start inclusive, end exclusive); the
   inclusive end the tools accept is advanced one day internally.
+
+### Caching
+
+Completed days are immutable, so responses for date ranges that end **before
+today** (in the user's timezone) are cached in the `HEALTH_CACHE` KV namespace
+for 30 days, keyed per user. Any range touching today is always fetched live,
+and cache read/write failures fall back to a live request — caching can never
+break a call. Provision the namespace once with
+`wrangler kv namespace create HEALTH_CACHE` and put its id in `wrangler.jsonc`.
 
 ---
 
