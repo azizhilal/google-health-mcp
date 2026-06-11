@@ -30,7 +30,9 @@
   ],
   "vars": {
     // Default Health API scopes requested from Google (read-only recovery data).
-    "GOOGLE_OAUTH_SCOPES": "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.nutrition.readonly"
+    "GOOGLE_OAUTH_SCOPES": "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.nutrition.readonly",
+    // IANA timezone used to resolve "today"/"last night" for date defaults.
+    "TIME_ZONE": "Europe/London"
   }
   // Secrets (set via `wrangler secret put`):
   //   GOOGLE_CLIENT_ID

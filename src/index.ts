@@ -40,6 +40,7 @@ export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props>
           clientId: this.env.GOOGLE_CLIENT_ID,
           clientSecret: this.env.GOOGLE_CLIENT_SECRET,
         }),
+      this.env.TIME_ZONE || "Europe/London",
     );
   }
 }

@@ -8,10 +8,14 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GoogleHealthClient } from "./google-health";
 
-/** Data type IDs in the Google Health API v4. */
+/**
+ * Data type IDs in the Google Health API v4. The daily-aggregated metrics
+ * (resting HR, HRV, sleep) are fetched via `reconcile`; the others via
+ * `dailyRollUp`. Resting HR and HRV only exist as `daily-` computed types.
+ */
 const DATA_TYPE = {
-  restingHeartRate: "resting-heart-rate",
-  heartRateVariability: "heart-rate-variability",
+  restingHeartRate: "daily-resting-heart-rate",
+  heartRateVariability: "daily-heart-rate-variability",
   sleep: "sleep",
   heartRate: "heart-rate",
   activeZoneMinutes: "active-zone-minutes",
@@ -19,15 +23,26 @@ const DATA_TYPE = {
   hydration: "hydration-log",
 } as const;
 
-/** "YYYY-MM-DD" for a date N days before today (UTC). */
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
+/** "YYYY-MM-DD" for an instant, as seen in the given IANA timezone. */
+function isoInTz(date: Date, timeZone: string): string {
+  // en-CA formats as YYYY-MM-DD; the timeZone option shifts the calendar day.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+/** "YYYY-MM-DD" for a date N days before today, in the given timezone. */
+function isoDaysAgo(days: number, timeZone: string): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return isoInTz(d, timeZone);
+}
+
+function todayIso(timeZone: string): string {
+  return isoInTz(new Date(), timeZone);
 }
 
 /** These tools only read upstream data and reach an external API. */
@@ -46,7 +61,11 @@ function errorResult(err: unknown) {
  * Register all tools on the MCP server. `getClient` defers client construction
  * to call-time so token refresh works against live props.
  */
-export function registerTools(server: McpServer, getClient: () => GoogleHealthClient) {
+export function registerTools(
+  server: McpServer,
+  getClient: () => GoogleHealthClient,
+  timeZone: string,
+) {
   // The headline tool: one call to decide "should I train today?"
   server.registerTool(
     "get_recovery_snapshot",
@@ -58,12 +77,12 @@ export function registerTools(server: McpServer, getClient: () => GoogleHealthCl
     },
     async ({ date }) => {
       try {
-        const day = date ?? todayIso();
+        const day = date ?? todayIso(timeZone);
         const client = getClient();
         const [sleep, restingHr, hrv] = await Promise.all([
-          client.dailyRollUp(DATA_TYPE.sleep, day, day),
-          client.dailyRollUp(DATA_TYPE.restingHeartRate, day, day),
-          client.dailyRollUp(DATA_TYPE.heartRateVariability, day, day),
+          client.reconcile(DATA_TYPE.sleep, day, day),
+          client.reconcile(DATA_TYPE.restingHeartRate, day, day),
+          client.reconcile(DATA_TYPE.heartRateVariability, day, day),
         ]);
         return jsonResult({ date: day, sleep, restingHeartRate: restingHr, hrv });
       } catch (err) {
@@ -82,7 +101,7 @@ export function registerTools(server: McpServer, getClient: () => GoogleHealthCl
     },
     async ({ days }) => {
       try {
-        return jsonResult(await getClient().dailyRollUp(DATA_TYPE.heartRateVariability, isoDaysAgo(days), todayIso()));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.heartRateVariability, isoDaysAgo(days, timeZone), todayIso(timeZone)));
       } catch (err) {
         return errorResult(err);
       }
@@ -99,7 +118,7 @@ export function registerTools(server: McpServer, getClient: () => GoogleHealthCl
     },
     async ({ days }) => {
       try {
-        return jsonResult(await getClient().dailyRollUp(DATA_TYPE.restingHeartRate, isoDaysAgo(days), todayIso()));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.restingHeartRate, isoDaysAgo(days, timeZone), todayIso(timeZone)));
       } catch (err) {
         return errorResult(err);
       }
@@ -119,7 +138,7 @@ export function registerTools(server: McpServer, getClient: () => GoogleHealthCl
     },
     async ({ start_date, end_date }) => {
       try {
-        return jsonResult(await getClient().dailyRollUp(DATA_TYPE.sleep, start_date, end_date));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.sleep, start_date, end_date));
       } catch (err) {
         return errorResult(err);
       }
@@ -142,7 +161,7 @@ export function registerTools(server: McpServer, getClient: () => GoogleHealthCl
         const client = getClient();
         const [azm, restingHr] = await Promise.all([
           client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start_date, end_date),
-          client.dailyRollUp(DATA_TYPE.restingHeartRate, start_date, end_date),
+          client.reconcile(DATA_TYPE.restingHeartRate, start_date, end_date),
         ]);
         return jsonResult({ activeZoneMinutes: azm, restingHeartRate: restingHr });
       } catch (err) {

@@ -12,6 +12,14 @@
 const HEALTH_BASE = "https://health.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
+/** Transient (retryable) HTTP statuses and how many times we'll back off. */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 3;
+/** Stop following pagination after this many pages (safety against loops). */
+const MAX_PAGES = 50;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 /** A calendar date (google.type.Date); wrapped in a CivilDateTime's `date`
  *  field by callers. No time component = midnight = whole day. */
 interface CivilDate {
@@ -76,13 +84,17 @@ export class GoogleHealthClient {
     // CivilDateTime ({ date, time? }); omitting `time` defaults to midnight,
     // which aligns with the daily aggregation window. We advance the caller's
     // inclusive end by one day to make it the exclusive upper bound.
-    const body = {
-      range: {
-        start: { date: toCivilDate(startDate) },
-        end: { date: toCivilDate(nextDayIso(endDate)) },
-      },
+    const range = {
+      start: { date: toCivilDate(startDate) },
+      end: { date: toCivilDate(nextDayIso(endDate)) },
     };
-    return this.request(url, { method: "POST", body: JSON.stringify(body) });
+    // pageToken (when present) goes in the POST body for this method.
+    return this.paginate("rollupDataPoints", (pageToken) =>
+      this.request(url, {
+        method: "POST",
+        body: JSON.stringify(pageToken ? { range, pageToken } : { range }),
+      }),
+    );
   }
 
   /**
@@ -103,17 +115,85 @@ export class GoogleHealthClient {
     // The filter field is "<dataType>.interval.start_time" (underscored) per AIP-160.
     const field = `${dataType.replace(/-/g, "_")}.interval.start_time`;
     const filter = `${field} >= "${startTime}" AND ${field} < "${endTime}"`;
-    const params = new URLSearchParams({ filter });
-    if (pageSize) params.set("pageSize", String(pageSize));
-    const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints?${params}`;
-    return this.request(url, { method: "GET" });
+    // pageToken (when present) goes in the query string for this method.
+    return this.paginate("dataPoints", (pageToken) => {
+      const params = new URLSearchParams({ filter });
+      if (pageSize) params.set("pageSize", String(pageSize));
+      if (pageToken) params.set("pageToken", pageToken);
+      const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints?${params}`;
+      return this.request(url, { method: "GET" });
+    });
   }
 
-  /** Fetch with bearer auth; on 401, refresh the token once and retry. */
+  /**
+   * Reconciled data points over an inclusive date range. This is the right
+   * method for daily-aggregated types — `daily-resting-heart-rate`,
+   * `daily-heart-rate-variability`, `sleep` — which do NOT support dailyRollUp.
+   * Filtering is on the civil (calendar) start time, so values are plain
+   * "YYYY-MM-DD" dates; the inclusive end is advanced one day to be exclusive.
+   *
+   * @param dataType          e.g. "daily-resting-heart-rate", "sleep"
+   * @param startDate         inclusive "YYYY-MM-DD"
+   * @param endDate           inclusive "YYYY-MM-DD"
+   * @param dataSourceFamily  optional, e.g. "users/me/dataSourceFamilies/google-wearables"
+   */
+  async reconcile(
+    dataType: string,
+    startDate: string,
+    endDate: string,
+    dataSourceFamily?: string,
+  ): Promise<unknown> {
+    const field = `${dataType.replace(/-/g, "_")}.interval.civil_start_time`;
+    const filter = `${field} >= "${startDate}" AND ${field} < "${nextDayIso(endDate)}"`;
+    return this.paginate("dataPoints", (pageToken) => {
+      const params = new URLSearchParams({ filter });
+      if (dataSourceFamily) params.set("dataSourceFamily", dataSourceFamily);
+      if (pageToken) params.set("pageToken", pageToken);
+      const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints:reconcile?${params}`;
+      return this.request(url, { method: "GET" });
+    });
+  }
+
+  /**
+   * Follow `nextPageToken` until exhausted, concatenating each page's
+   * `arrayKey` array into the first page's response. Returns the merged
+   * response object with `nextPageToken` stripped.
+   */
+  private async paginate(
+    arrayKey: "dataPoints" | "rollupDataPoints",
+    fetchPage: (pageToken?: string) => Promise<unknown>,
+  ): Promise<unknown> {
+    const merged = (await fetchPage()) as Record<string, unknown>;
+    const hadKey = Array.isArray(merged[arrayKey]);
+    const items = hadKey ? (merged[arrayKey] as unknown[]) : [];
+    let token = merged.nextPageToken as string | undefined;
+
+    for (let page = 1; token && page < MAX_PAGES; page++) {
+      const next = (await fetchPage(token)) as Record<string, unknown>;
+      if (Array.isArray(next[arrayKey])) items.push(...(next[arrayKey] as unknown[]));
+      token = next.nextPageToken as string | undefined;
+    }
+
+    // Don't synthesize an empty array if the response keys data elsewhere.
+    if (!hadKey && items.length === 0) {
+      delete merged.nextPageToken;
+      return merged;
+    }
+
+    merged[arrayKey] = items;
+    delete merged.nextPageToken;
+    return merged;
+  }
+
+  /**
+   * Fetch with bearer auth. On 401 we refresh the token once and retry; on a
+   * transient status (429/5xx) we back off and retry up to MAX_RETRIES,
+   * honouring a Retry-After header when present.
+   */
   private async request(
     url: string,
     init: RequestInit,
-    retried = false,
+    state: { authRetried: boolean; attempt: number } = { authRetried: false, attempt: 0 },
   ): Promise<unknown> {
     const res = await fetch(url, {
       ...init,
@@ -124,9 +204,14 @@ export class GoogleHealthClient {
       },
     });
 
-    if (res.status === 401 && this.refreshToken && !retried) {
+    if (res.status === 401 && this.refreshToken && !state.authRetried) {
       await this.refresh();
-      return this.request(url, init, true);
+      return this.request(url, init, { ...state, authRetried: true });
+    }
+
+    if (RETRYABLE_STATUSES.has(res.status) && state.attempt < MAX_RETRIES) {
+      await sleep(this.backoffMs(res, state.attempt));
+      return this.request(url, init, { ...state, attempt: state.attempt + 1 });
     }
 
     if (!res.ok) {
@@ -136,6 +221,16 @@ export class GoogleHealthClient {
       );
     }
     return res.json();
+  }
+
+  /** Backoff delay: Retry-After if the server sent one, else exponential with jitter. */
+  private backoffMs(res: Response, attempt: number): number {
+    const retryAfter = res.headers.get("Retry-After");
+    if (retryAfter) {
+      const secs = parseInt(retryAfter, 10);
+      if (!Number.isNaN(secs)) return Math.min(secs * 1000, 10_000);
+    }
+    return Math.min(2 ** attempt * 300 + Math.random() * 200, 5_000);
   }
 
   /** Exchange the refresh token for a fresh access token (mutates in place). */
