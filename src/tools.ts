@@ -31,6 +31,11 @@ const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
  *  rather than the `interval.civil_start_time` used by interval types. */
 const BY_DATE = { timeMember: "date" } as const;
 
+/** Sleep is a session type: it filters on `interval.end_time` (a physical
+ *  Timestamp), i.e. each night is bucketed by wake time. Confirmed via the
+ *  diagnostics probe — `start_time` and `session_time_interval` are rejected. */
+const SLEEP_FILTER = { timeMember: "interval.end_time", physical: true } as const;
+
 function jsonResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
@@ -47,9 +52,24 @@ function countItems(resp: unknown): number {
   return 0;
 }
 
+/** Map a raw Google Health API error to an actionable hint, when we recognise it. */
+function hintFor(message: string): string | undefined {
+  if (/\b403\b|PERMISSION_DENIED/.test(message))
+    return "The token is missing the OAuth scope for this data type. Reconnect the connector and grant the requested permission (e.g. nutrition).";
+  if (/INVALID_DATA_POINT_FILTER/.test(message))
+    return "The filter field is invalid for this data type — its time member differs (daily types use `date`, sessions like sleep use `interval.end_time`, other intervals use `interval.civil_start_time`).";
+  if (/\b401\b|UNAUTHENTICATED/.test(message))
+    return "Authentication failed even after a token refresh — the refresh token may be revoked. Reconnect the connector.";
+  if (/\b404\b|NOT_FOUND/.test(message))
+    return "Data type not found — the data type ID may be wrong or unsupported.";
+  return undefined;
+}
+
 function errorResult(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
-  return { content: [{ type: "text" as const, text: `Error: ${message}` }], isError: true };
+  const hint = hintFor(message);
+  const text = hint ? `Error: ${message}\n\nHint: ${hint}` : `Error: ${message}`;
+  return { content: [{ type: "text" as const, text }], isError: true };
 }
 
 /**
@@ -75,7 +95,7 @@ export function registerTools(
         const day = date ?? todayIso(timeZone);
         const client = getClient();
         const [sleep, restingHr, hrv] = await Promise.all([
-          client.reconcile(DATA_TYPE.sleep, day, day),
+          client.reconcile(DATA_TYPE.sleep, day, day, SLEEP_FILTER),
           client.reconcile(DATA_TYPE.restingHeartRate, day, day, BY_DATE),
           client.reconcile(DATA_TYPE.heartRateVariability, day, day, BY_DATE),
         ]);
@@ -133,7 +153,7 @@ export function registerTools(
     },
     async ({ start_date, end_date }) => {
       try {
-        return jsonResult(await getClient().reconcile(DATA_TYPE.sleep, start_date, end_date));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.sleep, start_date, end_date, SLEEP_FILTER));
       } catch (err) {
         return errorResult(err);
       }
@@ -208,11 +228,7 @@ export function registerTools(
       const client = getClient();
 
       const probes: { metric: string; run: () => Promise<unknown> }[] = [
-        // Sleep is a session type; all start_time members were rejected, so
-        // probe the end_time counterparts (sessions are bucketed by wake time).
-        { metric: "sleep[interval.end_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end, { timeMember: "interval.end_time", physical: true }) },
-        { metric: "sleep[interval.civil_end_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end, { timeMember: "interval.civil_end_time" }) },
-        { metric: "sleep[session_time_interval.end_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end, { timeMember: "session_time_interval.end_time", physical: true }) },
+        { metric: "sleep", run: () => client.reconcile(DATA_TYPE.sleep, start, end, SLEEP_FILTER) },
         { metric: "resting_heart_rate", run: () => client.reconcile(DATA_TYPE.restingHeartRate, start, end, BY_DATE) },
         { metric: "hrv", run: () => client.reconcile(DATA_TYPE.heartRateVariability, start, end, BY_DATE) },
         { metric: "active_zone_minutes", run: () => client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start, end) },
