@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toCivilDate, nextDayIso, isoInTz, todayIso, isoDaysAgo } from "./dates";
+import { toCivilDate, nextDayIso, isoInTz, todayIso, isoDaysAgo, buildTimeFilter } from "./dates";
 
 describe("toCivilDate", () => {
   it("parses a YYYY-MM-DD string into google.type.Date parts", () => {
@@ -52,5 +52,29 @@ describe("todayIso / isoDaysAgo (with injected now)", () => {
   it("isoDaysAgo subtracts whole days", () => {
     expect(isoDaysAgo(7, "Europe/London", now)).toBe("2026-06-04");
     expect(isoDaysAgo(0, "Europe/London", now)).toBe("2026-06-11");
+  });
+});
+
+describe("buildTimeFilter (the member-path bug class)", () => {
+  it("interval type: default civil_start_time, plain dates, exclusive end", () => {
+    expect(buildTimeFilter("exercise", "2026-06-10", "2026-06-10")).toBe(
+      'exercise.interval.civil_start_time >= "2026-06-10" AND exercise.interval.civil_start_time < "2026-06-11"',
+    );
+  });
+
+  it("daily computed type: flat `date` member, snake_cased id", () => {
+    expect(
+      buildTimeFilter("daily-resting-heart-rate", "2026-06-01", "2026-06-07", { timeMember: "date" }),
+    ).toBe(
+      'daily_resting_heart_rate.date >= "2026-06-01" AND daily_resting_heart_rate.date < "2026-06-08"',
+    );
+  });
+
+  it("sleep session type: interval.end_time as a physical RFC3339-Z timestamp", () => {
+    expect(
+      buildTimeFilter("sleep", "2026-06-10", "2026-06-10", { timeMember: "interval.end_time", physical: true }),
+    ).toBe(
+      'sleep.interval.end_time >= "2026-06-10T00:00:00Z" AND sleep.interval.end_time < "2026-06-11T00:00:00Z"',
+    );
   });
 });

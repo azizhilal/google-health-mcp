@@ -29,6 +29,15 @@ jobs:
 
       - run: npm ci
 
+      # Gate the deploy: a type error or failing test must block the push to
+      # prod. These caught the date/filter bugs that the live API otherwise
+      # surfaced one painful round at a time.
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
       # App secrets (GOOGLE_CLIENT_ID/SECRET, COOKIE_ENCRYPTION_KEY) live in
       # Cloudflare, not GitHub — set once in the dashboard. This workflow only
       # needs the Cloudflare API token + account id.

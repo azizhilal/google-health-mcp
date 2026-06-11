@@ -53,3 +53,27 @@ export function isoDaysAgo(days: number, timeZone: string, now: Date = new Date(
   d.setUTCDate(d.getUTCDate() - days);
   return isoInTz(d, timeZone);
 }
+
+/**
+ * Build the AIP-160 filter string for a list/reconcile query over an inclusive
+ * date range. The filterable time member varies by data type — this is the
+ * spot that caused most of the API errors, so it lives here, pure and tested:
+ *
+ *   - interval types (e.g. exercise): "interval.civil_start_time" (civil date)
+ *   - session types (sleep):          "interval.end_time" (physical, RFC3339-Z)
+ *   - daily computed types:           "date" (civil date)
+ *
+ * The data type ID is snake_cased for the filter grammar, and the inclusive
+ * end is advanced one day to form the exclusive upper bound.
+ */
+export function buildTimeFilter(
+  dataType: string,
+  startDate: string,
+  endDateInclusive: string,
+  opts: { timeMember?: string; physical?: boolean } = {},
+): string {
+  const field = `${dataType.replace(/-/g, "_")}.${opts.timeMember ?? "interval.civil_start_time"}`;
+  // Physical-time members are Timestamps (need a Z); civil members take a plain date.
+  const fmt = (iso: string) => (opts.physical ? `${iso}T00:00:00Z` : iso);
+  return `${field} >= "${fmt(startDate)}" AND ${field} < "${fmt(nextDayIso(endDateInclusive))}"`;
+}

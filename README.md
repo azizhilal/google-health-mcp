@@ -20,6 +20,47 @@ and recovery.
 | `get_resting_hr_trend` | Resting HR over N days (rising = fatigue/illness) |
 | `get_sleep` | Nightly sleep duration + stages over a range |
 | `get_daily_summary` | Active-zone-minutes + resting HR over a range |
+| `get_nutrition` | Calories, macros, and hydration over a range (needs the nutrition scope) |
+| `run_diagnostics` | Probes every metric and reports per-metric `ok` / `empty` / `error` |
+
+> **Troubleshooting:** if anything stops returning data, run `run_diagnostics`
+> first. It hits each data type directly and reports the exact API error per
+> metric — so you isolate the failing data type/method/filter immediately
+> instead of inferring it from a downstream symptom.
+
+---
+
+## Data type mapping (Google Health API v4)
+
+This is the non-obvious part of the v4 API and the source of most integration
+bugs. Each data type supports only certain methods, and the filterable time
+member differs by type. The mapping below is what this server uses (see
+[`src/tools.ts`](src/tools.ts) and [`src/google-health.ts`](src/google-health.ts)):
+
+| Metric | Data type ID | Method | Filter member |
+|--------|--------------|--------|---------------|
+| Sleep | `sleep` | `reconcile` | `sleep.interval.end_time` (physical `Timestamp`, RFC3339-`Z`) |
+| Resting HR | `daily-resting-heart-rate` | `reconcile` | `daily_resting_heart_rate.date` (civil date) |
+| HRV | `daily-heart-rate-variability` | `reconcile` | `daily_heart_rate_variability.date` (civil date) |
+| Active-zone-min | `active-zone-minutes` | `dailyRollUp` | — (civil `range` in body) |
+| Heart rate | `heart-rate` | `dailyRollUp` | — (civil `range` in body) |
+| Nutrition | `nutrition-log` | `dailyRollUp` | — (civil `range` in body) |
+| Hydration | `hydration-log` | `dailyRollUp` | — (civil `range` in body) |
+
+Rules of thumb:
+
+- **Resting HR and HRV only exist as `daily-` computed types** (`list`/`reconcile`
+  only — they do **not** support `dailyRollUp`), and they expose a flat **`date`**
+  field rather than an interval.
+- **Sleep is a session type**: bucketed by wake time, so it filters on
+  `interval.end_time` as a **physical** timestamp (RFC3339 with `Z`), not a civil
+  date. `start_time` and `session_time_interval` are rejected.
+- **Other interval types** (e.g. `exercise`) filter on `interval.civil_start_time`
+  with a plain `YYYY-MM-DD` value.
+- Filter field names are **snake_case** (`daily_resting_heart_rate`), while the
+  data type ID in the URL path is **kebab-case** (`daily-resting-heart-rate`).
+- Ranges/filters are **closed-open** (start inclusive, end exclusive); the
+  inclusive end the tools accept is advanced one day internally.
 
 ---
 

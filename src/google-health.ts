@@ -9,7 +9,7 @@
  * dailyRollUp request bodies and (2) transparently refreshing the access token.
  */
 
-import { toCivilDate, nextDayIso } from "./dates";
+import { toCivilDate, nextDayIso, buildTimeFilter } from "./dates";
 
 const HEALTH_BASE = "https://health.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -124,11 +124,10 @@ export class GoogleHealthClient {
     endDate: string,
     opts: { timeMember?: string; dataSourceFamily?: string; physical?: boolean } = {},
   ): Promise<unknown> {
-    const field = `${dataType.replace(/-/g, "_")}.${opts.timeMember ?? "interval.civil_start_time"}`;
-    // Physical-time members (Timestamps) want RFC3339 with a Z; civil members
-    // want a plain calendar date. End bound is exclusive (next day).
-    const fmt = (iso: string) => (opts.physical ? `${iso}T00:00:00Z` : iso);
-    const filter = `${field} >= "${fmt(startDate)}" AND ${field} < "${fmt(nextDayIso(endDate))}"`;
+    const filter = buildTimeFilter(dataType, startDate, endDate, {
+      timeMember: opts.timeMember,
+      physical: opts.physical,
+    });
     return this.paginate("dataPoints", (pageToken) => {
       const params = new URLSearchParams({ filter });
       if (opts.dataSourceFamily) params.set("dataSourceFamily", opts.dataSourceFamily);
