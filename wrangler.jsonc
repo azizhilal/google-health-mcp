@@ -25,7 +25,7 @@
     {
       "binding": "OAUTH_KV",
       // Replace with the id printed by: wrangler kv namespace create OAUTH_KV
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "7a0347387a2a488da0f0f74c94fbd157"
     }
   ],
   "vars": {
