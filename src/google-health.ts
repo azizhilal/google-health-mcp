@@ -122,10 +122,13 @@ export class GoogleHealthClient {
     dataType: string,
     startDate: string,
     endDate: string,
-    opts: { timeMember?: string; dataSourceFamily?: string } = {},
+    opts: { timeMember?: string; dataSourceFamily?: string; physical?: boolean } = {},
   ): Promise<unknown> {
     const field = `${dataType.replace(/-/g, "_")}.${opts.timeMember ?? "interval.civil_start_time"}`;
-    const filter = `${field} >= "${startDate}" AND ${field} < "${nextDayIso(endDate)}"`;
+    // Physical-time members (Timestamps) want RFC3339 with a Z; civil members
+    // want a plain calendar date. End bound is exclusive (next day).
+    const fmt = (iso: string) => (opts.physical ? `${iso}T00:00:00Z` : iso);
+    const filter = `${field} >= "${fmt(startDate)}" AND ${field} < "${fmt(nextDayIso(endDate))}"`;
     return this.paginate("dataPoints", (pageToken) => {
       const params = new URLSearchParams({ filter });
       if (opts.dataSourceFamily) params.set("dataSourceFamily", opts.dataSourceFamily);

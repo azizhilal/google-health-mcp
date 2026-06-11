@@ -208,7 +208,11 @@ export function registerTools(
       const client = getClient();
 
       const probes: { metric: string; run: () => Promise<unknown> }[] = [
-        { metric: "sleep", run: () => client.reconcile(DATA_TYPE.sleep, start, end) },
+        // Sleep is a session type; we don't yet know its valid filter member,
+        // so probe the candidates and let the API tell us which it accepts.
+        { metric: "sleep[interval.civil_start_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end) },
+        { metric: "sleep[interval.start_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end, { timeMember: "interval.start_time", physical: true }) },
+        { metric: "sleep[session_time_interval.start_time]", run: () => client.reconcile(DATA_TYPE.sleep, start, end, { timeMember: "session_time_interval.start_time", physical: true }) },
         { metric: "resting_heart_rate", run: () => client.reconcile(DATA_TYPE.restingHeartRate, start, end, BY_DATE) },
         { metric: "hrv", run: () => client.reconcile(DATA_TYPE.heartRateVariability, start, end, BY_DATE) },
         { metric: "active_zone_minutes", run: () => client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start, end) },
