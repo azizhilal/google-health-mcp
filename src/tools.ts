@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GoogleHealthClient } from "./google-health";
 import { isoDaysAgo, todayIso } from "./dates";
+import { toLeanJson } from "./shape";
 
 /**
  * Data type IDs in the Google Health API v4. The daily-aggregated metrics
@@ -45,7 +46,7 @@ const BY_DATE = { timeMember: "date" } as const;
 const SLEEP_FILTER = { timeMember: "interval.end_time", physical: true } as const;
 
 function jsonResult(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+  return { content: [{ type: "text" as const, text: toLeanJson(data) }] };
 }
 
 /** Number of data points in an API response, regardless of which array key
