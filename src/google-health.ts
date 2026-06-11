@@ -9,6 +9,8 @@
  * dailyRollUp request bodies and (2) transparently refreshing the access token.
  */
 
+import { toCivilDate, nextDayIso } from "./dates";
+
 const HEALTH_BASE = "https://health.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
@@ -20,37 +22,11 @@ const MAX_PAGES = 50;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** A calendar date (google.type.Date); wrapped in a CivilDateTime's `date`
- *  field by callers. No time component = midnight = whole day. */
-interface CivilDate {
-  year: number;
-  month: number;
-  day: number;
-}
-
 export interface GoogleHealthClientOptions {
   accessToken: string;
   refreshToken?: string;
   clientId: string;
   clientSecret: string;
-}
-
-/** Parse a "YYYY-MM-DD" string into the API's google.type.Date shape. */
-function toCivilDate(isoDate: string): CivilDate {
-  const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
-  if (!year || !month || !day) {
-    throw new Error(`Invalid date "${isoDate}" — expected YYYY-MM-DD`);
-  }
-  return { year, month, day };
-}
-
-/** The day after `isoDate` ("YYYY-MM-DD"), used to turn an inclusive end into
- *  the exclusive upper bound the API's CivilTimeInterval expects. */
-function nextDayIso(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
-  const d = new Date(Date.UTC(year, month - 1, day));
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
 }
 
 export class GoogleHealthClient {

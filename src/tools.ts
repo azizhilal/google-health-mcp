@@ -7,6 +7,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GoogleHealthClient } from "./google-health";
+import { isoDaysAgo, todayIso } from "./dates";
 
 /**
  * Data type IDs in the Google Health API v4. The daily-aggregated metrics
@@ -23,28 +24,6 @@ const DATA_TYPE = {
   hydration: "hydration-log",
 } as const;
 
-/** "YYYY-MM-DD" for an instant, as seen in the given IANA timezone. */
-function isoInTz(date: Date, timeZone: string): string {
-  // en-CA formats as YYYY-MM-DD; the timeZone option shifts the calendar day.
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-/** "YYYY-MM-DD" for a date N days before today, in the given timezone. */
-function isoDaysAgo(days: number, timeZone: string): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return isoInTz(d, timeZone);
-}
-
-function todayIso(timeZone: string): string {
-  return isoInTz(new Date(), timeZone);
-}
-
 /** These tools only read upstream data and reach an external API. */
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
 
@@ -54,6 +33,18 @@ const BY_DATE = { timeMember: "date" } as const;
 
 function jsonResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+}
+
+/** Number of data points in an API response, regardless of which array key
+ *  the method uses (`dataPoints` for list/reconcile, `rollupDataPoints` for
+ *  dailyRollUp). Returns 0 when neither is present. */
+function countItems(resp: unknown): number {
+  const obj = resp as Record<string, unknown> | null;
+  for (const key of ["dataPoints", "rollupDataPoints"]) {
+    const arr = obj?.[key];
+    if (Array.isArray(arr)) return arr.length;
+  }
+  return 0;
 }
 
 function errorResult(err: unknown) {
@@ -196,6 +187,52 @@ export function registerTools(
       } catch (err) {
         return errorResult(err);
       }
+    },
+  );
+
+  // Self-check: probe every metric over the last few days and report, per
+  // metric, whether it returned data / was empty / errored (with the API's
+  // error). Turns "the connector is broken" into a precise map of which
+  // data type + method + filter is failing.
+  server.registerTool(
+    "run_diagnostics",
+    {
+      title: "Run Diagnostics",
+      description: "Probe each Google Health data type over the last few days and report per-metric status (ok / empty / error). Use this to diagnose connection or data-availability problems.",
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    async () => {
+      const end = todayIso(timeZone);
+      const start = isoDaysAgo(3, timeZone);
+      const client = getClient();
+
+      const probes: { metric: string; run: () => Promise<unknown> }[] = [
+        { metric: "sleep", run: () => client.reconcile(DATA_TYPE.sleep, start, end) },
+        { metric: "resting_heart_rate", run: () => client.reconcile(DATA_TYPE.restingHeartRate, start, end, BY_DATE) },
+        { metric: "hrv", run: () => client.reconcile(DATA_TYPE.heartRateVariability, start, end, BY_DATE) },
+        { metric: "active_zone_minutes", run: () => client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start, end) },
+        { metric: "heart_rate", run: () => client.dailyRollUp(DATA_TYPE.heartRate, start, end) },
+        { metric: "nutrition", run: () => client.dailyRollUp(DATA_TYPE.nutrition, start, end) },
+        { metric: "hydration", run: () => client.dailyRollUp(DATA_TYPE.hydration, start, end) },
+      ];
+
+      const results = await Promise.all(
+        probes.map(async (p) => {
+          try {
+            const points = countItems(await p.run());
+            return { metric: p.metric, status: points > 0 ? "ok" : "empty", points };
+          } catch (err) {
+            return {
+              metric: p.metric,
+              status: "error",
+              error: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }),
+      );
+
+      return jsonResult({ window: { start, end }, timeZone, results });
     },
   );
 }
