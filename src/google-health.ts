@@ -129,25 +129,30 @@ export class GoogleHealthClient {
    * Reconciled data points over an inclusive date range. This is the right
    * method for daily-aggregated types — `daily-resting-heart-rate`,
    * `daily-heart-rate-variability`, `sleep` — which do NOT support dailyRollUp.
-   * Filtering is on the civil (calendar) start time, so values are plain
-   * "YYYY-MM-DD" dates; the inclusive end is advanced one day to be exclusive.
    *
-   * @param dataType          e.g. "daily-resting-heart-rate", "sleep"
-   * @param startDate         inclusive "YYYY-MM-DD"
-   * @param endDate           inclusive "YYYY-MM-DD"
-   * @param dataSourceFamily  optional, e.g. "users/me/dataSourceFamilies/google-wearables"
+   * The filterable time member differs by data type: interval types like
+   * `sleep` filter on `interval.civil_start_time`, whereas the daily computed
+   * types expose a single `date` field. Values are plain "YYYY-MM-DD"; the
+   * inclusive end is advanced one day to form the exclusive upper bound.
+   *
+   * @param dataType    e.g. "daily-resting-heart-rate", "sleep"
+   * @param startDate   inclusive "YYYY-MM-DD"
+   * @param endDate     inclusive "YYYY-MM-DD"
+   * @param opts.timeMember        member path after the data type, default
+   *                               "interval.civil_start_time"; use "date" for daily types
+   * @param opts.dataSourceFamily  optional, e.g. "users/me/dataSourceFamilies/google-wearables"
    */
   async reconcile(
     dataType: string,
     startDate: string,
     endDate: string,
-    dataSourceFamily?: string,
+    opts: { timeMember?: string; dataSourceFamily?: string } = {},
   ): Promise<unknown> {
-    const field = `${dataType.replace(/-/g, "_")}.interval.civil_start_time`;
+    const field = `${dataType.replace(/-/g, "_")}.${opts.timeMember ?? "interval.civil_start_time"}`;
     const filter = `${field} >= "${startDate}" AND ${field} < "${nextDayIso(endDate)}"`;
     return this.paginate("dataPoints", (pageToken) => {
       const params = new URLSearchParams({ filter });
-      if (dataSourceFamily) params.set("dataSourceFamily", dataSourceFamily);
+      if (opts.dataSourceFamily) params.set("dataSourceFamily", opts.dataSourceFamily);
       if (pageToken) params.set("pageToken", pageToken);
       const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints:reconcile?${params}`;
       return this.request(url, { method: "GET" });

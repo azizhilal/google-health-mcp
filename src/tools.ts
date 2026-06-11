@@ -48,6 +48,10 @@ function todayIso(timeZone: string): string {
 /** These tools only read upstream data and reach an external API. */
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
 
+/** Daily computed types (resting HR, HRV) filter on a flat `date` field
+ *  rather than the `interval.civil_start_time` used by interval types. */
+const BY_DATE = { timeMember: "date" } as const;
+
 function jsonResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
@@ -81,8 +85,8 @@ export function registerTools(
         const client = getClient();
         const [sleep, restingHr, hrv] = await Promise.all([
           client.reconcile(DATA_TYPE.sleep, day, day),
-          client.reconcile(DATA_TYPE.restingHeartRate, day, day),
-          client.reconcile(DATA_TYPE.heartRateVariability, day, day),
+          client.reconcile(DATA_TYPE.restingHeartRate, day, day, BY_DATE),
+          client.reconcile(DATA_TYPE.heartRateVariability, day, day, BY_DATE),
         ]);
         return jsonResult({ date: day, sleep, restingHeartRate: restingHr, hrv });
       } catch (err) {
@@ -101,7 +105,7 @@ export function registerTools(
     },
     async ({ days }) => {
       try {
-        return jsonResult(await getClient().reconcile(DATA_TYPE.heartRateVariability, isoDaysAgo(days, timeZone), todayIso(timeZone)));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.heartRateVariability, isoDaysAgo(days, timeZone), todayIso(timeZone), BY_DATE));
       } catch (err) {
         return errorResult(err);
       }
@@ -118,7 +122,7 @@ export function registerTools(
     },
     async ({ days }) => {
       try {
-        return jsonResult(await getClient().reconcile(DATA_TYPE.restingHeartRate, isoDaysAgo(days, timeZone), todayIso(timeZone)));
+        return jsonResult(await getClient().reconcile(DATA_TYPE.restingHeartRate, isoDaysAgo(days, timeZone), todayIso(timeZone), BY_DATE));
       } catch (err) {
         return errorResult(err);
       }
@@ -161,7 +165,7 @@ export function registerTools(
         const client = getClient();
         const [azm, restingHr] = await Promise.all([
           client.dailyRollUp(DATA_TYPE.activeZoneMinutes, start_date, end_date),
-          client.reconcile(DATA_TYPE.restingHeartRate, start_date, end_date),
+          client.reconcile(DATA_TYPE.restingHeartRate, start_date, end_date, BY_DATE),
         ]);
         return jsonResult({ activeZoneMinutes: azm, restingHeartRate: restingHr });
       } catch (err) {
