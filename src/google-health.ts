@@ -12,8 +12,9 @@
 const HEALTH_BASE = "https://health.googleapis.com/v4";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-/** A calendar date as the API's CivilDateTime (no time component = whole day). */
-interface CivilDateTime {
+/** A calendar date (google.type.Date); wrapped in a CivilDateTime's `date`
+ *  field by callers. No time component = midnight = whole day. */
+interface CivilDate {
   year: number;
   month: number;
   day: number;
@@ -26,13 +27,22 @@ export interface GoogleHealthClientOptions {
   clientSecret: string;
 }
 
-/** Parse a "YYYY-MM-DD" string into the API's CivilDateTime shape. */
-function toCivilDate(isoDate: string): CivilDateTime {
+/** Parse a "YYYY-MM-DD" string into the API's google.type.Date shape. */
+function toCivilDate(isoDate: string): CivilDate {
   const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
   if (!year || !month || !day) {
     throw new Error(`Invalid date "${isoDate}" — expected YYYY-MM-DD`);
   }
   return { year, month, day };
+}
+
+/** The day after `isoDate` ("YYYY-MM-DD"), used to turn an inclusive end into
+ *  the exclusive upper bound the API's CivilTimeInterval expects. */
+function nextDayIso(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export class GoogleHealthClient {
@@ -62,10 +72,14 @@ export class GoogleHealthClient {
     endDate: string,
   ): Promise<unknown> {
     const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints:dailyRollUp`;
+    // CivilTimeInterval: start inclusive, end exclusive. Each bound is a
+    // CivilDateTime ({ date, time? }); omitting `time` defaults to midnight,
+    // which aligns with the daily aggregation window. We advance the caller's
+    // inclusive end by one day to make it the exclusive upper bound.
     const body = {
       range: {
-        start: toCivilDate(startDate),
-        end: toCivilDate(endDate),
+        start: { date: toCivilDate(startDate) },
+        end: { date: toCivilDate(nextDayIso(endDate)) },
       },
     };
     return this.request(url, { method: "POST", body: JSON.stringify(body) });

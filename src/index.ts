@@ -17,8 +17,17 @@ import type { Env, Props } from "./types";
 
 export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props> {
   server = new McpServer({
-    name: "Google Health (Fitbit) Coaching",
+    name: "Google Health",
+    title: "Google Health",
     version: "0.1.0",
+    websiteUrl: "https://google-health-mcp.a1dancole.workers.dev",
+    icons: [
+      {
+        src: "https://google-health-mcp.a1dancole.workers.dev/icon.svg",
+        mimeType: "image/svg+xml",
+        sizes: ["any"],
+      },
+    ],
   });
 
   async init() {

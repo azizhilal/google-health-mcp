@@ -37,6 +37,30 @@ function callbackUrl(reqUrl: string): string {
   return new URL("/callback", reqUrl).toString();
 }
 
+// Connector icon. Referenced from the MCP serverInfo `icons` so clients that
+// render server branding (e.g. Claude's connector list) can show a logo. A
+// heart + ECG pulse in Google's palette — health/recovery at a glance.
+const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Google Health">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4285F4"/>
+      <stop offset="0.5" stop-color="#34A853"/>
+      <stop offset="1" stop-color="#FBBC04"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="#fff"/>
+  <path fill="url(#g)" d="M96 168C60 140 28 116 28 80a40 40 0 0 1 68-28 40 40 0 0 1 68 28c0 36-32 60-68 88z"/>
+  <path fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"
+        d="M44 100h26l12-26 16 46 12-20h38"/>
+</svg>`;
+
+app.get("/icon.svg", (c) =>
+  c.body(ICON_SVG, 200, {
+    "Content-Type": "image/svg+xml; charset=utf-8",
+    "Cache-Control": "public, max-age=86400",
+  }),
+);
+
 // Step 1: Claude hits /authorize. Parse its request, bounce to Google.
 app.get("/authorize", async (c) => {
   const oauthReq = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
