@@ -1,0 +1,36 @@
+name: Deploy site to Cloudflare Pages
+
+# Publishes the static marketing/instructions site in site/ to Cloudflare
+# Pages. Runs on pushes that touch the site (or this workflow), and on demand.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "site/**"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publish to Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reuses the same GitHub secrets as the Worker deploy. NOTE: the API
+      # token must include the "Cloudflare Pages: Edit" permission — the
+      # "Edit Cloudflare Workers" template does NOT, so add it to the token (or
+      # create a new one) if this step 403s. First run creates the Pages project.
+      - name: Publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=google-health-mcp-site --branch=master

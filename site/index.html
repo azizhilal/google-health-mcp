@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Health for Claude — recovery data for your AI training coach</title>
+  <meta name="description" content="A self-hosted MCP connector that brings your Fitbit & Pixel Watch recovery data — sleep, HRV, resting heart rate and more — into Claude for training coaching." />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <img src="logo.png" alt="Google Health logo" />
+        <span>Google&nbsp;Health <span style="color:var(--grey);font-weight:400">for Claude</span></span>
+      </a>
+      <nav class="nav">
+        <span class="nav-links" style="display:contents">
+          <a href="#features">Features</a>
+          <a href="#how">How it works</a>
+          <a href="#setup">Setup</a>
+        </span>
+        <a class="btn" href="https://github.com/a1dancole/google-health-mcp">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <div class="hero wrap">
+      <img class="logo" src="logo.png" alt="Google Health heart logo" />
+      <div><span class="pill">Open-source · self-hosted · MCP connector</span></div>
+      <h1>Your recovery data, <span class="gradient-text">inside Claude</span>.</h1>
+      <p class="lead">
+        A remote <a href="https://modelcontextprotocol.io">Model Context Protocol</a> server that brings your
+        <strong>Fitbit</strong> &amp; <strong>Pixel Watch</strong> health data — sleep, HRV, resting heart rate and more —
+        into Claude, so it can coach your training against how recovered you actually are.
+      </p>
+      <div class="cta">
+        <a class="btn" href="#setup">Get started</a>
+        <a class="btn ghost" href="https://github.com/a1dancole/google-health-mcp">View on GitHub</a>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <section id="features" class="alt">
+      <div class="wrap">
+        <h2>What it does</h2>
+        <p class="sub">Twelve coaching-oriented tools, each answering a question a coach actually asks — returning compact data Claude reasons over alongside your workouts.</p>
+        <div class="grid">
+          <div class="card">
+            <div class="dot d-green">🌙</div>
+            <h3>Recovery snapshot</h3>
+            <p>Last night's sleep, resting HR and HRV in one call — "am I recovered enough to train today?"</p>
+          </div>
+          <div class="card">
+            <div class="dot d-red">❤️</div>
+            <h3>HRV &amp; resting-HR trends</h3>
+            <p>Daily autonomic-recovery trends over any window. Rising resting HR flags fatigue or illness.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-blue">😴</div>
+            <h3>Sleep stages</h3>
+            <p>Nightly duration and stage breakdown for sleep-debt and consistency analysis.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-yellow">🏃</div>
+            <h3>Daily activity load</h3>
+            <p>Active-zone-minutes, steps, distance and calories — all-day load to complement Strava.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-blue">⚖️</div>
+            <h3>Body composition</h3>
+            <p>Weight and body-fat trends across a training block.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-green">🫁</div>
+            <h3>Vitals &amp; fitness</h3>
+            <p>Respiratory rate, blood-oxygen (SpO₂) and estimated VO₂ max — early under-recovery signals.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-red">🥗</div>
+            <h3>Nutrition &amp; hydration</h3>
+            <p>Calories, macros and water (via MyFitnessPal → Health Connect) to assess fuelling.</p>
+          </div>
+          <div class="card">
+            <div class="dot d-yellow">🩺</div>
+            <h3>Self-diagnostics</h3>
+            <p>A built-in tool probes every metric and reports exactly what's working — no guesswork.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="sub">You deploy your own copy to Cloudflare Workers. Your data flows straight from Google to your worker to your Claude — it never touches anyone else's servers.</p>
+        <div class="flow">
+          <div class="node"><strong>Fitbit / Pixel</strong><span>via Health Connect</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><strong>Google Health API</strong><span>OAuth, read-only</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><strong>Your Worker</strong><span>Cloudflare, your account</span></div>
+          <div class="arrow">→</div>
+          <div class="node"><strong>Claude</strong><span>MCP connector</span></div>
+        </div>
+        <div class="callout">
+          <strong>Privacy by design.</strong> The server runs on <em>your</em> Cloudflare account.
+          OAuth tokens are encrypted at rest in your own KV namespace, requests are read-only, and the
+          project authors never receive your health data. See the <a href="privacy.html">Privacy Policy</a>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Setup -->
+    <section id="setup" class="alt">
+      <div class="wrap">
+        <h2>Set it up (~20 min)</h2>
+        <p class="sub">For personal use (just you), Google requires no security review. You'll need a Google account with a Fitbit or Pixel Watch, a free Cloudflare account, and a GitHub account.</p>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <h3>1 · Google Cloud OAuth</h3>
+              <p>Create a project, enable the <strong>Google Health API</strong>, configure the OAuth consent screen (External, published to Production so tokens don't expire weekly), add the read-only health scopes, and create a <strong>Web application</strong> OAuth client. Set the redirect URI to <code>https://&lt;your-worker&gt;.workers.dev/callback</code>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>2 · Deploy to Cloudflare via GitHub Actions</h3>
+              <p>Fork the repo and add your <code>CLOUDFLARE_API_TOKEN</code> and <code>CLOUDFLARE_ACCOUNT_ID</code> as GitHub secrets. Every push to <code>master</code> deploys automatically — no local tooling required. App secrets (Google client ID/secret, cookie key) live in Cloudflare.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>3 · Add the connector to Claude</h3>
+              <p>In Claude → Settings → Connectors, add your worker URL with the <code>/mcp</code> path: <code>https://&lt;your-worker&gt;.workers.dev/mcp</code>. Click Connect, approve Google consent, and the tools light up on web, desktop and mobile.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>4 · Ask Claude about your recovery</h3>
+              <p>"How did I sleep this week?" · "Is my HRV trending down?" · "Am I recovered enough for intervals today?" If anything looks off, ask Claude to <code>run_diagnostics</code>.</p>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:40px">
+          <a class="btn" href="https://github.com/a1dancole/google-health-mcp">Full instructions on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="data">
+      <div class="wrap" style="max-width:760px;text-align:center">
+        <h2>Works with Fitbit &amp; Pixel</h2>
+        <p class="sub" style="margin-bottom:0">The Google Health API serves data originating from <strong>Fitbit</strong> devices and <strong>Google Pixel Watches</strong>. Garmin, Apple Watch, Whoop and Oura are not covered by this API.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <img src="logo.png" alt="" style="width:24px;height:24px" />
+        <span>Google Health for Claude</span>
+      </a>
+      <nav>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="https://github.com/a1dancole/google-health-mcp">GitHub</a>
+      </nav>
+    </div>
+    <div class="wrap" style="margin-top:16px;font-size:0.8rem;color:var(--grey)">
+      An independent open-source project. Not affiliated with or endorsed by Google LLC or Anthropic.
+      "Google", "Google Health", "Fitbit" and "Pixel" are trademarks of Google LLC.
+    </div>
+  </footer>
+</body>
+</html>

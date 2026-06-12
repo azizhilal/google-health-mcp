@@ -1,0 +1,153 @@
+/* Google Health–style theme: white surfaces, Material rounding, Google palette. */
+:root {
+  --blue: #4285f4;
+  --red: #ea4335;
+  --yellow: #fbbc04;
+  --green: #34a853;
+  --ink: #202124;
+  --grey: #5f6368;
+  --line: #dadce0;
+  --bg: #ffffff;
+  --soft: #f8f9fa;
+  --shadow: 0 1px 2px rgba(60, 64, 67, 0.1), 0 2px 6px rgba(60, 64, 67, 0.08);
+  --radius: 16px;
+  --maxw: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 1.15rem; color: var(--ink); }
+.brand img { width: 32px; height: 32px; }
+.nav { display: flex; gap: 28px; align-items: center; }
+.nav a { color: var(--grey); font-size: 0.95rem; }
+.nav a:hover { color: var(--ink); text-decoration: none; }
+.btn {
+  display: inline-block;
+  background: var(--blue);
+  color: #fff;
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-weight: 500;
+  transition: box-shadow 0.2s, background 0.2s;
+}
+.btn:hover { text-decoration: none; box-shadow: var(--shadow); background: #3b78e7; }
+.btn.ghost { background: transparent; color: var(--blue); border: 1px solid var(--line); }
+.btn.ghost:hover { background: var(--soft); }
+
+/* Hero */
+.hero { text-align: center; padding: 96px 0 72px; }
+.hero img.logo { width: 96px; height: 96px; margin-bottom: 24px; }
+.hero h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 500; letter-spacing: -0.5px; margin: 0 0 16px; }
+.hero p.lead { font-size: 1.25rem; color: var(--grey); max-width: 660px; margin: 0 auto 32px; }
+.hero .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.gradient-text {
+  background: linear-gradient(90deg, var(--blue), var(--green) 45%, var(--yellow) 70%, var(--red));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.pill {
+  display: inline-block; font-size: 0.8rem; font-weight: 500; color: var(--grey);
+  background: var(--soft); border: 1px solid var(--line); padding: 6px 14px; border-radius: 999px; margin-bottom: 28px;
+}
+
+/* Sections */
+section { padding: 64px 0; }
+section h2 { font-size: 2rem; font-weight: 500; text-align: center; margin: 0 0 12px; }
+section .sub { text-align: center; color: var(--grey); max-width: 640px; margin: 0 auto 48px; }
+.alt { background: var(--soft); }
+
+/* Cards grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.card {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; transition: box-shadow 0.2s, transform 0.2s;
+}
+.card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.card .dot { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 14px; }
+.card h3 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 500; }
+.card p { margin: 0; color: var(--grey); font-size: 0.95rem; }
+.d-blue { background: rgba(66, 133, 244, 0.12); }
+.d-red { background: rgba(234, 67, 53, 0.12); }
+.d-yellow { background: rgba(251, 188, 4, 0.16); }
+.d-green { background: rgba(52, 168, 83, 0.12); }
+
+/* Steps */
+.steps { counter-reset: step; max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+.step { display: flex; gap: 20px; align-items: flex-start; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+.step::before {
+  counter-increment: step; content: counter(step);
+  flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--blue); color: #fff; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+.step h3 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 500; }
+.step p { margin: 0; color: var(--grey); }
+.step code, .flow code, .prose code {
+  background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+  padding: 2px 6px; font-size: 0.88em; font-family: "Roboto Mono", ui-monospace, monospace;
+}
+
+/* Flow */
+.flow { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.flow .node { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 26px; text-align: center; min-width: 150px; box-shadow: var(--shadow); }
+.flow .node strong { display: block; font-weight: 500; }
+.flow .node span { color: var(--grey); font-size: 0.85rem; }
+.flow .arrow { color: var(--grey); font-size: 1.5rem; }
+
+/* Callout */
+.callout { max-width: 760px; margin: 32px auto 0; background: rgba(52, 168, 83, 0.08); border: 1px solid rgba(52, 168, 83, 0.3); border-radius: var(--radius); padding: 20px 24px; color: #1e4620; }
+.callout strong { color: var(--green); }
+
+/* Footer */
+.site-footer { border-top: 1px solid var(--line); padding: 40px 0; color: var(--grey); font-size: 0.9rem; }
+.site-footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.site-footer .brand { font-size: 1rem; }
+.site-footer nav a { color: var(--grey); margin-left: 20px; }
+
+/* Legal pages (prose) */
+.prose { max-width: 760px; margin: 0 auto; padding: 56px 0; }
+.prose h1 { font-size: 2.2rem; font-weight: 500; margin-bottom: 4px; }
+.prose .updated { color: var(--grey); margin-bottom: 32px; }
+.prose h2 { font-size: 1.35rem; font-weight: 500; margin-top: 36px; }
+.prose p, .prose li { color: #3c4043; }
+.prose ul { padding-left: 22px; }
+.back { display: inline-block; margin-bottom: 24px; color: var(--grey); }
+
+@media (max-width: 640px) {
+  .nav .nav-links { display: none; }
+  .hero { padding: 64px 0 48px; }
+  section { padding: 48px 0; }
+}

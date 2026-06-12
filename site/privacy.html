@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — Google Health for Claude</title>
+  <meta name="description" content="Privacy policy for the Google Health for Claude MCP connector." />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="logo.png" alt="Google Health logo" /><span>Google&nbsp;Health <span style="color:var(--grey);font-weight:400">for Claude</span></span></a>
+      <nav class="nav"><a class="btn" href="https://github.com/a1dancole/google-health-mcp">GitHub</a></nav>
+    </div>
+  </header>
+
+  <div class="prose wrap">
+    <a class="back" href="/">← Back to home</a>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 12 June 2026</p>
+
+    <p>
+      <strong>Google Health for Claude</strong> ("the Software") is open-source software that you deploy and
+      operate yourself. It is a remote Model Context Protocol (MCP) connector that lets an AI assistant (Claude)
+      read your Google Health data on your behalf. This policy explains how the Software handles data. It is provided
+      as a template; if you deploy your own instance, <strong>you are the data controller</strong> for that instance.
+    </p>
+
+    <h2>Who operates the Software</h2>
+    <p>
+      Each deployment runs on infrastructure controlled by the person who deploys it ("the Operator") — typically your
+      own <a href="https://www.cloudflare.com/">Cloudflare</a> account. The authors of the Software do <strong>not</strong>
+      host a shared service, do not operate a central server, and never receive, store, or have access to your data.
+    </p>
+
+    <h2>What data is processed</h2>
+    <ul>
+      <li><strong>Health &amp; fitness data</strong> from the Google Health API — for example sleep, heart rate,
+        heart-rate variability, resting heart rate, active-zone-minutes, steps, distance, calories, weight, body fat,
+        respiratory rate, blood-oxygen saturation, VO₂ max, and (optionally) nutrition and hydration.</li>
+      <li><strong>Your Google account email</strong>, used solely to label the connection and key per-user data.</li>
+      <li><strong>OAuth tokens</strong> issued by Google so the Software can make read-only requests on your behalf.</li>
+    </ul>
+    <p>Access is <strong>read-only</strong>: the Software requests only <code>.readonly</code> scopes and never writes to or modifies your Google Health data.</p>
+
+    <h2>How data is used</h2>
+    <p>
+      Data is fetched on demand when you (through Claude) invoke a tool, and is returned to your AI assistant so it can
+      answer your questions. The Software does not use your data for advertising, profiling, or training any model, and
+      does not sell or share it with third parties.
+    </p>
+
+    <h2>Storage and retention</h2>
+    <ul>
+      <li><strong>OAuth tokens</strong> are stored encrypted at rest in the Operator's Cloudflare KV namespace, so the
+        connection persists between sessions. They remain until you disconnect/revoke access or the Operator deletes them.</li>
+      <li><strong>Response caching:</strong> to reduce calls to Google, responses for past (completed) days may be cached
+        in the Operator's Cloudflare KV for up to 30 days. Cached data is the same health data described above and is keyed per user.</li>
+      <li>The Software keeps no other logs of your health data. Standard infrastructure logs (e.g. Cloudflare request
+        metadata) are governed by Cloudflare's own policies.</li>
+    </ul>
+
+    <h2>Third-party services</h2>
+    <ul>
+      <li><strong>Google</strong> — source of the health data, via the Google Health API and Google OAuth. Your use of
+        Google is governed by the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</li>
+      <li><strong>Cloudflare</strong> — hosts the Operator's worker and storage, per the
+        <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare Privacy Policy</a>.</li>
+      <li><strong>Anthropic (Claude)</strong> — the AI assistant that receives tool results, per the
+        <a href="https://www.anthropic.com/legal/privacy">Anthropic Privacy Policy</a>.</li>
+    </ul>
+    <p>This Software's use of information received from Google APIs adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+      including the Limited Use requirements.</p>
+
+    <h2>Your choices &amp; rights</h2>
+    <ul>
+      <li><strong>Revoke access</strong> at any time from your
+        <a href="https://myaccount.google.com/permissions">Google Account permissions</a> page, or by removing the
+        connector in Claude.</li>
+      <li><strong>Delete stored tokens and cache</strong> by clearing the Operator's Cloudflare KV namespaces, or by
+        deleting the deployment entirely.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>The Software is not directed to children under 13 (or the minimum age in your jurisdiction) and should not be used by them.</p>
+
+    <h2>Changes</h2>
+    <p>This policy may be updated; material changes will be reflected by the "Last updated" date above.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about the Software can be raised via the
+      <a href="https://github.com/a1dancole/google-health-mcp/issues">project's GitHub issues</a>. For a specific
+      deployment, contact its Operator.</p>
+  </div>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© 2026 Google Health for Claude — an independent open-source project.</span>
+      <nav><a href="/">Home</a><a href="terms.html">Terms</a><a href="https://github.com/a1dancole/google-health-mcp">GitHub</a></nav>
+    </div>
+  </footer>
+</body>
+</html>

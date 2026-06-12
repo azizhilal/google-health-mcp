@@ -23,9 +23,9 @@ export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props>
     websiteUrl: "https://google-health-mcp.a1dancole.workers.dev",
     icons: [
       {
-        src: "https://google-health-mcp.a1dancole.workers.dev/icon.svg",
-        mimeType: "image/svg+xml",
-        sizes: ["any"],
+        src: "https://google-health-mcp.a1dancole.workers.dev/icon.png",
+        mimeType: "image/png",
+        sizes: ["366x367"],
       },
     ],
   });
