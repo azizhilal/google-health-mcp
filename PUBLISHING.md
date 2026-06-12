@@ -57,10 +57,12 @@ You don't have to wait for verification to onboard real users.
 
 ## Phase 3 — CASA security assessment (you)
 
-- Restricted scopes require an annual **CASA Tier 2** assessment via a
-  Google-authorized assessor (ASVS-based).
-- **Cost: typically several thousand to tens of thousands USD per year**, plus
-  remediation effort. Get quotes from authorized labs.
+- The `googlehealth.*` scopes are **restricted**, so exceeding 100 users
+  requires an annual **CASA Tier 2** assessment via a Google-authorized
+  assessor (OWASP ASVS-based).
+- **Cost: ~$500–$4,500 USD per year** (App Defense Alliance pricing), ~2–3
+  weeks, plus remediation effort. Only required to go beyond 100 users — not
+  for personal use or the ≤100-user unverified launch.
 
 ## Phase 4 — Operate
 
