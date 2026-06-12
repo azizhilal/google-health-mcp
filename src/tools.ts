@@ -89,6 +89,7 @@ export function registerTools(
   server: McpServer,
   getClient: () => GoogleHealthClient,
   timeZone: string,
+  purgeCache: () => Promise<number>,
 ) {
   // The headline tool: one call to decide "should I train today?"
   server.registerTool(
@@ -267,6 +268,27 @@ export function registerTools(
           client.reconcile(DATA_TYPE.vo2Max, start_date, end_date, BY_DATE),
         ]);
         return jsonResult({ respiratoryRate, oxygenSaturation, vo2Max });
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "delete_my_data",
+    {
+      title: "Delete My Cached Data",
+      description: "Delete all of your health data cached by this connector. This does not change your data in Google Health. To fully revoke access, also remove this app in your Google Account permissions and disconnect the connector in Claude.",
+      inputSchema: {},
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    },
+    async () => {
+      try {
+        const deleted = await purgeCache();
+        return jsonResult({
+          deletedCacheEntries: deleted,
+          note: "Cached data cleared. To fully revoke access, remove this app at https://myaccount.google.com/permissions and disconnect the connector in Claude.",
+        });
       } catch (err) {
         return errorResult(err);
       }

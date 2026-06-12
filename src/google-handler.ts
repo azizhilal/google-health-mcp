@@ -25,6 +25,17 @@ type Bindings = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+// Baseline security headers on every response from this handler (consent,
+// callback, icon). Helps satisfy the ASVS checks a CASA assessment runs.
+app.use("*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "no-referrer");
+  c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  c.header("Cross-Origin-Opener-Policy", "same-origin");
+});
+
 function encodeState(req: AuthRequest): string {
   return btoa(JSON.stringify(req)).replace(/\+/g, "-").replace(/\//g, "_");
 }

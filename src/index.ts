@@ -44,7 +44,22 @@ export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props>
           timeZone: this.env.TIME_ZONE || "Europe/London",
         }),
       this.env.TIME_ZONE || "Europe/London",
+      () => this.purgeCache(),
     );
+  }
+
+  /** Delete every cached entry for this user. Backs the delete_my_data tool. */
+  private async purgeCache(): Promise<number> {
+    const prefix = `v1:${this.props.email}:`;
+    let count = 0;
+    let cursor: string | undefined;
+    do {
+      const page = await this.env.HEALTH_CACHE.list({ prefix, cursor });
+      await Promise.all(page.keys.map((k) => this.env.HEALTH_CACHE.delete(k.name)));
+      count += page.keys.length;
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    return count;
   }
 }
 
