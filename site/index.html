@@ -132,8 +132,13 @@
           </div>
           <div class="step">
             <div>
-              <h3>2 · Deploy to Cloudflare via GitHub Actions</h3>
-              <p>Fork the repo and add your <code>CLOUDFLARE_API_TOKEN</code> and <code>CLOUDFLARE_ACCOUNT_ID</code> as GitHub secrets. Every push to <code>master</code> deploys automatically — no local tooling required. App secrets (Google client ID/secret, cookie key) live in Cloudflare.</p>
+              <h3>2 · Deploy to Cloudflare — one click</h3>
+              <p>The button forks this repo into your own GitHub and provisions the worker and storage in your Cloudflare account — no API tokens pasted anywhere. Then set three secrets (Google client ID/secret, cookie key) in your worker's settings, and point the Google client's redirect URI at <code>https://&lt;your-worker&gt;.workers.dev/callback</code>.</p>
+              <p style="margin-top:14px">
+                <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/a1dancole/google-health-mcp">
+                  <img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32" />
+                </a>
+              </p>
             </div>
           </div>
           <div class="step">

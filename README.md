@@ -109,9 +109,26 @@ You can't skip this — Google requires an OAuth client. But for personal use
 
 ## Deploy
 
-Two options. **CI deploy** (recommended) needs no local tooling at all.
+Three ways, easiest first.
 
-### Option A — GitHub Actions (no local wrangler)
+### Option A — Deploy to Cloudflare (one click)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/a1dancole/google-health-mcp)
+
+Forks this repo into your own GitHub, provisions the Worker and KV namespaces,
+and deploys — all inside the Cloudflare dashboard, so **no API tokens are ever
+pasted anywhere**. After it finishes:
+
+1. **Set the app secrets** in *Workers & Pages → your worker → Settings →
+   Variables and Secrets* (type **Secret**): `GOOGLE_CLIENT_ID`,
+   `GOOGLE_CLIENT_SECRET`, and `COOKIE_ENCRYPTION_KEY` (any long random string).
+2. **Note your Worker URL** (shown after deploy) and set the Google OAuth client's
+   redirect URI to `https://<your-worker>.workers.dev/callback`.
+
+You still need the Google OAuth client from the step above — that part can't be
+automated. (Requires the repo to be public.)
+
+### Option B — GitHub Actions (no local wrangler)
 
 The workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
 deploys on every push to `master` (and on demand via "Run workflow"). Like the
@@ -140,7 +157,7 @@ holds the Cloudflare API token + account id.
    These persist across deploys, so you set them once. (Or use
    `wrangler secret put <NAME>` locally if you prefer the CLI.)
 
-### Option B — local wrangler
+### Option C — local wrangler
 
 ```sh
 npm install
