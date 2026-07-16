@@ -189,6 +189,40 @@ export class GoogleHealthClient {
   }
 
   /**
+   * Data points via the plain list endpoint over an inclusive date range,
+   * using the same AIP-160 filter grammar as `reconcile`. This is the right
+   * method for types that support `list` but NOT `reconcile` — currently
+   * `electrocardiogram` (filters on `interval.start_time`, physical) and
+   * `irregular-rhythm-notification` (filters on `sample_time.physical_time`).
+   *
+   * @param dataType    e.g. "electrocardiogram"
+   * @param startDate   inclusive "YYYY-MM-DD"
+   * @param endDate     inclusive "YYYY-MM-DD"
+   * @param opts        same filter knobs as `reconcile`, plus optional pageSize
+   */
+  async listByDate(
+    dataType: string,
+    startDate: string,
+    endDate: string,
+    opts: { timeMember?: string; physical?: boolean; pageSize?: number } = {},
+  ): Promise<unknown> {
+    const filter = buildTimeFilter(dataType, startDate, endDate, {
+      timeMember: opts.timeMember,
+      physical: opts.physical,
+    });
+    const cacheKey = ["listByDate", dataType, startDate, endDate, opts.timeMember, opts.physical];
+    return this.withCache(cacheKey, endDate, () =>
+      this.paginate("dataPoints", (pageToken) => {
+        const params = new URLSearchParams({ filter });
+        if (opts.pageSize) params.set("pageSize", String(opts.pageSize));
+        if (pageToken) params.set("pageToken", pageToken);
+        const url = `${HEALTH_BASE}/users/me/dataTypes/${dataType}/dataPoints?${params}`;
+        return this.request(url, { method: "GET" });
+      }),
+    );
+  }
+
+  /**
    * Follow `nextPageToken` until exhausted, concatenating each page's
    * `arrayKey` array into the first page's response. Returns the merged
    * response object with `nextPageToken` stripped.

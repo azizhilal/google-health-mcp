@@ -2,7 +2,8 @@
 
 A remote [MCP](https://modelcontextprotocol.io) server, deployed on Cloudflare
 Workers, that exposes your **Fitbit** recovery data — sleep, resting heart rate,
-and **HRV** — to Claude via the [Google Health API v4](https://developers.google.com/health).
+**HRV**, skin temperature, HR zones, workouts, and more — to Claude via the
+[Google Health API v4](https://developers.google.com/health).
 Add it once as a custom connector and it works on Claude **web, desktop, and
 mobile**. Pairs with the Strava connector so your coach sees both training load
 and recovery.
@@ -15,14 +16,19 @@ and recovery.
 
 | Tool | What it answers |
 |------|-----------------|
-| `get_recovery_snapshot` | "Am I recovered enough to train today?" — last night's sleep + resting HR + HRV |
+| `get_recovery_snapshot` | "Am I recovered enough to train today?" — last night's sleep + resting HR + HRV + skin-temp variation |
 | `get_hrv_trend` | HRV over the last N days (autonomic recovery trend) |
 | `get_resting_hr_trend` | Resting HR over N days (rising = fatigue/illness) |
 | `get_sleep` | Nightly sleep duration + stages over a range |
 | `get_daily_summary` | Active-zone-minutes, steps, distance, calories + resting HR over a range |
-| `get_body_composition` | Weight + body-fat % over a range |
-| `get_vitals_trend` | Respiratory rate, SpO2, and VO2 max over a range |
+| `get_activity_detail` | Floors, active minutes, active energy, sedentary time, swim lengths, altitude |
+| `get_exercise_sessions` | Watch-logged workouts (type, duration, stats) over a range |
+| `get_heart_rate_zones` | Daily HR zone boundaries + time (and calories) in each zone |
+| `get_body_composition` | Weight, body-fat %, and height over a range |
+| `get_vitals_trend` | Respiratory rate, SpO2, skin temp, core body temp, blood glucose, VO2 max over a range |
 | `get_nutrition` | Calories, macros, and hydration over a range (needs the nutrition scope) |
+| `get_cardiac_events` | ECG recordings + irregular-rhythm (AFib) notifications (needs ecg/irn scopes) |
+| `query_data_type` | Escape hatch: query **any** v4 data type by ID (incl. future ones) |
 | `run_diagnostics` | Probes every metric and reports per-metric `ok` / `empty` / `error` |
 
 > **Troubleshooting:** if anything stops returning data, run `run_diagnostics`
@@ -54,6 +60,24 @@ member differs by type. The mapping below is what this server uses (see
 | Respiratory rate | `daily-respiratory-rate` | `reconcile` | `daily_respiratory_rate.date` (civil date) |
 | Oxygen saturation | `daily-oxygen-saturation` | `reconcile` | `daily_oxygen_saturation.date` (civil date) |
 | VO2 max | `daily-vo2-max` | `reconcile` | `daily_vo2_max.date` (civil date) |
+| Run VO2 max | `run-vo2-max` | `dailyRollUp` | — (civil `range` in body) |
+| Skin temperature | `daily-sleep-temperature-derivations` | `reconcile` | `daily_sleep_temperature_derivations.date` (civil date) |
+| Core body temp | `core-body-temperature` | `dailyRollUp` | — (civil `range` in body) |
+| Blood glucose | `blood-glucose` | `dailyRollUp` | — (civil `range` in body) |
+| HR zones (daily) | `daily-heart-rate-zones` | `reconcile` | `daily_heart_rate_zones.date` (civil date) |
+| Time in HR zone | `time-in-heart-rate-zone` | `dailyRollUp` | — (civil `range` in body) |
+| Calories in HR zone | `calories-in-heart-rate-zone` | `dailyRollUp` | — (civil `range` in body, **max 14 days**) |
+| Exercise sessions | `exercise` | `reconcile` | `exercise.interval.civil_start_time` (civil date) |
+| Floors | `floors` | `dailyRollUp` | — (civil `range` in body) |
+| Active minutes | `active-minutes` | `dailyRollUp` | — (civil `range` in body, **max 14 days**) |
+| Active energy | `active-energy-burned` | `dailyRollUp` | — (civil `range` in body) |
+| Sedentary time | `sedentary-period` | `dailyRollUp` | — (civil `range` in body) |
+| Swim lengths | `swim-lengths-data` | `dailyRollUp` | — (civil `range` in body) |
+| Altitude | `altitude` | `dailyRollUp` | — (civil `range` in body) |
+| Height | `height` | `reconcile` | `height.sample_time.physical_time` (physical `Timestamp`) |
+| RR sleep summary | `respiratory-rate-sleep-summary` | `reconcile` | `respiratory_rate_sleep_summary.sample_time.physical_time` (physical) |
+| ECG | `electrocardiogram` | `list` | `electrocardiogram.interval.start_time` (physical `Timestamp`) |
+| Irregular rhythm | `irregular-rhythm-notification` | `list` | `irregular_rhythm_notification.sample_time.physical_time` (physical) |
 | Nutrition | `nutrition-log` | `dailyRollUp` | — (civil `range` in body) |
 | Hydration | `hydration-log` | `dailyRollUp` | — (civil `range` in body) |
 
@@ -67,10 +91,21 @@ Rules of thumb:
   date. `start_time` and `session_time_interval` are rejected.
 - **Other interval types** (e.g. `exercise`) filter on `interval.civil_start_time`
   with a plain `YYYY-MM-DD` value.
+- **Measurement (sample) types** — `height`, `irregular-rhythm-notification`,
+  `respiratory-rate-sleep-summary` — filter on `sample_time.physical_time`
+  (physical `Timestamp`). ECG is the odd one out: it filters on
+  `interval.start_time` as a **physical** timestamp.
+- **ECG and irregular-rhythm** support `list` only (not `reconcile`), so the
+  client has a `listByDate` helper that applies the same filter grammar to the
+  plain list endpoint.
 - Filter field names are **snake_case** (`daily_resting_heart_rate`), while the
   data type ID in the URL path is **kebab-case** (`daily-resting-heart-rate`).
 - Ranges/filters are **closed-open** (start inclusive, end exclusive); the
   inclusive end the tools accept is advanced one day internally.
+- **Query range caps:** `heart-rate`, `total-calories`, `active-minutes`, and
+  `calories-in-heart-rate-zone` are limited to **14 days** per query; all other
+  data types to **90 days**. Tools fetch the capped types best-effort so a long
+  range degrades gracefully instead of failing the whole call.
 
 ### Caching
 
@@ -101,6 +136,9 @@ You can't skip this — Google requires an OAuth client. But for personal use
    - `.../auth/googlehealth.health_metrics_and_measurements.readonly`
    - `.../auth/googlehealth.sleep.readonly`
    - `.../auth/googlehealth.activity_and_fitness.readonly`
+   - `.../auth/googlehealth.nutrition.readonly`
+   - `.../auth/googlehealth.ecg.readonly` (for `get_cardiac_events`)
+   - `.../auth/googlehealth.irn.readonly` (for `get_cardiac_events`)
 4. **Create credentials** → OAuth client ID → **Web application**.
    - Authorized redirect URI: `https://<your-worker>.workers.dev/callback`
      (you'll know `<your-worker>` after the first `wrangler deploy`; come back
@@ -223,3 +261,15 @@ Claude (web/desktop/mobile)
 - Exact rollup field names per data type may evolve; tools pass the API JSON
   through so Claude can adapt. If a data type returns empty, confirm your Fitbit
   actually records it (e.g. HRV needs sleep tracking enabled).
+- **Skin temperature** (`daily-sleep-temperature-derivations`) is the nightly
+  *variation from your personal baseline* computed during sleep — the same
+  number the Fitbit app shows — not an absolute reading. It needs a device that
+  records sleep temperature and ~3 nights of wear to establish a baseline.
+- **Adding the ecg/irn scopes** to an existing deployment requires a
+  reconnect: remove the connector's access at
+  <https://myaccount.google.com/permissions>, then disconnect/reconnect the
+  connector in Claude so Google re-prompts consent with the new scopes.
+- **Not in the v4 API** (so not in this MCP): stress scores, readiness/daily
+  readiness score, sleep score, mindfulness sessions, and menstrual-cycle
+  logs. If Google adds them, `query_data_type` can reach them without a
+  redeploy.
