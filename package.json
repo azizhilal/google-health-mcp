@@ -9,6 +9,7 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "icon:embed": "node scripts/embed-icon.mjs",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

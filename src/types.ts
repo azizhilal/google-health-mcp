@@ -22,6 +22,8 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   COOKIE_ENCRYPTION_KEY: string;
   GOOGLE_OAUTH_SCOPES: string;
+  /** Public origin of this Worker (for serverInfo icons/websiteUrl). */
+  PUBLIC_URL: string;
   /** IANA tz used to resolve "today"/"last night" for date defaults. */
   TIME_ZONE: string;
 }

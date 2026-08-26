@@ -221,6 +221,21 @@ Google OAuth client and set the redirect URI to
 
 Then ask your coach: *"Check my recovery — should I do today's hard session?"*
 
+## Connector icon
+
+The Worker advertises `PUBLIC_URL/icon.png` in its MCP `serverInfo.icons`
+(and `websiteUrl`), so clients that render server branding show it in the
+connector list. `assets/icon.png` is the source of truth; to swap it (e.g. for
+the official Google Health app icon from the Play Store listing):
+
+```sh
+npm run icon:embed -- ~/Downloads/google-health-icon.png   # writes src/icon.ts + assets/icon.png
+npx wrangler deploy
+```
+
+(Official marks are their owners' trademarks — fine for a personal deployment,
+not for redistribution.)
+
 ## Local development
 
 ```sh

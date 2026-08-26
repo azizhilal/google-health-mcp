@@ -39,6 +39,8 @@
     // ecg/irn cover get_cardiac_events; remove them here if you don't want to
     // grant those, and that tool will simply return a permission error.
     "GOOGLE_OAUTH_SCOPES": "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.nutrition.readonly https://www.googleapis.com/auth/googlehealth.ecg.readonly https://www.googleapis.com/auth/googlehealth.irn.readonly",
+    // Public origin of this Worker; used for the connector icon/website advertised to MCP clients.
+    "PUBLIC_URL": "https://google-health-mcp.a1dancole.workers.dev",
     // IANA timezone used to resolve "today"/"last night" for date defaults.
     "TIME_ZONE": "Europe/London"
   }

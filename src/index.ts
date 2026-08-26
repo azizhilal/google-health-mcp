@@ -13,21 +13,23 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GoogleHandler } from "./google-handler";
 import { GoogleHealthClient } from "./google-health";
 import { registerTools } from "./tools";
+import { ICON_PNG_SIZES } from "./icon";
 import type { Env, Props } from "./types";
 
 export class GoogleHealthMCP extends McpAgent<Env, Record<string, never>, Props> {
+  // `this.env` is set by the Durable Object base constructor, so it is
+  // available to field initialisers. PUBLIC_URL lets clients that render
+  // server branding (Claude's connector list) show the icon served at /icon.png.
   server = new McpServer({
     name: "Google Health",
     title: "Google Health",
     version: "0.1.0",
-    websiteUrl: "https://google-health-mcp.a1dancole.workers.dev",
-    icons: [
-      {
-        src: "https://google-health-mcp.a1dancole.workers.dev/icon.png",
-        mimeType: "image/png",
-        sizes: ["366x367"],
-      },
-    ],
+    ...(this.env?.PUBLIC_URL
+      ? {
+          websiteUrl: this.env.PUBLIC_URL,
+          icons: [{ src: `${this.env.PUBLIC_URL.replace(/\/$/, "")}/icon.png`, mimeType: "image/png", sizes: [ICON_PNG_SIZES] }],
+        }
+      : {}),
   });
 
   async init() {
