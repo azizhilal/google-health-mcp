@@ -33,7 +33,7 @@
   ],
   "vars": {
     "GOOGLE_OAUTH_SCOPES": "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.nutrition.readonly https://www.googleapis.com/auth/googlehealth.ecg.readonly https://www.googleapis.com/auth/googlehealth.irn.readonly",
-    "PUBLIC_URL": "https://google-health-mcp.workers.dev",
+    "PUBLIC_URL": "https://google-health-mcp.azizhilal123.workers.dev",
     "TIME_ZONE": "Asia/Riyadh"
   }
 }
