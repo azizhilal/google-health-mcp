@@ -24,28 +24,16 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      // Replace with the id printed by: wrangler kv namespace create OAUTH_KV
-      "id": "7a0347387a2a488da0f0f74c94fbd157"
+      "id": "2c83f97caf354b8195c67668526021ab"
     },
     {
-      // Caches immutable past-day API responses. Created via:
-      //   wrangler kv namespace create HEALTH_CACHE
       "binding": "HEALTH_CACHE",
-      "id": "f371d2aaf6ef488aa17085cb3c4cf3f9"
+      "id": "0a48af1bea5543a8b2302d1f1e7f8c43"
     }
   ],
   "vars": {
-    // Default Health API scopes requested from Google (read-only recovery data).
-    // ecg/irn cover get_cardiac_events; remove them here if you don't want to
-    // grant those, and that tool will simply return a permission error.
     "GOOGLE_OAUTH_SCOPES": "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly https://www.googleapis.com/auth/googlehealth.sleep.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.nutrition.readonly https://www.googleapis.com/auth/googlehealth.ecg.readonly https://www.googleapis.com/auth/googlehealth.irn.readonly",
-    // Public origin of this Worker; used for the connector icon/website advertised to MCP clients.
-    "PUBLIC_URL": "https://google-health-mcp.a1dancole.workers.dev",
-    // IANA timezone used to resolve "today"/"last night" for date defaults.
-    "TIME_ZONE": "Europe/London"
+    "PUBLIC_URL": "https://google-health-mcp.workers.dev",
+    "TIME_ZONE": "Asia/Riyadh"
   }
-  // Secrets (set via `wrangler secret put`):
-  //   GOOGLE_CLIENT_ID
-  //   GOOGLE_CLIENT_SECRET
-  //   COOKIE_ENCRYPTION_KEY   (any long random string)
 }
